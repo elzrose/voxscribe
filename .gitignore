@@ -1,4 +1,19 @@
+# Front-end & Back-end dependencies
 node_modules/
+client/node_modules/
+server/node_modules/
+
+# Secret vault
 .env
+
+# Dynamic uploaded files
+server/uploads/
+
+# Build folders
 dist/
 build/
+
+# Ignore local test audio files
+*.mp3
+*.wav
+*.m4a

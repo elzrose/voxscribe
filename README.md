@@ -1,5 +1,11 @@
+# Day 1
 Explained MERN stack & Speech-to-Text APIs.
 Chose Deepgram as the STT API.
 Initialized a Git repository.
 Created a React app using Vite.
 Installed & configured Tailwind CSS v4.
+# Day 2
+Accepts the file via the POST route.
+Performs a security check (making sure it's actually an approved audio file, not a dangerous script).
+Generates a unique name for it.
+Saves it physically on your computer in the uploads/ folder.
