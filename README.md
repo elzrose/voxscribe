@@ -9,3 +9,6 @@ Accepts the file via the POST route.
 Performs a security check (making sure it's actually an approved audio file, not a dangerous script).
 Generates a unique name for it.
 Saves it physically on your computer in the uploads/ folder.
+# Day 3
+Set up MongoDB with Mongoose.
+Create a schema for storing uploaded audio and transcriptions.
