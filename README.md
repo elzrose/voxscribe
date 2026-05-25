@@ -12,3 +12,9 @@ Saves it physically on your computer in the uploads/ folder.
 # Day 3
 Set up MongoDB with Mongoose.
 Create a schema for storing uploaded audio and transcriptions.
+# Day 4
+Created a free Deepgram account and secured an AI Speech-to-Text API key.
+Added the API key to the server's environment variables.
+Installed and imported the brand-new Deepgram v5 SDK.
+Piped the uploaded audio file as a Node.js stream to the Deepgram Nova-2 AI engine.
+Extracted the real voice-to-text transcription and saved it directly in MongoDB.

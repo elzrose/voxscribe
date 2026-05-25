@@ -1,27 +1,30 @@
 const dns = require('node:dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']); // Force Node to use Google's Public DNS
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const mongoose = require('mongoose'); // 1. Import Mongoose
+const mongoose = require('mongoose');
+const { DeepgramClient } = require('@deepgram/sdk'); // 1. Import Deepgram SDK v5
 require('dotenv').config();
 
-// Import our new Transcription model blueprint
-const Transcription = require('./models/Transcription'); // 2. Import Model
+// Import our Mongoose Model
+const Transcription = require('./models/Transcription');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Initialize Deepgram Client using your secret .env key
+const deepgram = new DeepgramClient(process.env.DEEPGRAM_API_KEY); // 2. Initialize Deepgram v5
 // Ensure 'uploads' directory exists
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// 3. CONNECT TO MONGOOSE ATLAS
-// Connects our Express server to the MongoDB database in the cloud!
+// CONNECT TO MONGOOSE ATLAS
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('🔌 Connected to MongoDB Atlas successfully!'))
   .catch((err) => console.error('❌ Database connection error:', err));
@@ -67,11 +70,9 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'VoxScribe Server is fully operational!' });
 });
 
-// 4. GET ROUTE: Fetch Transcription History
-// Returns all historical transcripts saved in our database, newest first
+// GET ROUTE: Fetch Transcription History
 app.get('/api/transcriptions', async (req, res) => {
   try {
-    // Find all records and sort them by 'createdAt' in descending order (-1)
     const history = await Transcription.find().sort({ createdAt: -1 });
     res.status(200).json(history);
   } catch (error) {
@@ -79,32 +80,50 @@ app.get('/api/transcriptions', async (req, res) => {
   }
 });
 
-// 5. POST ROUTE: Handle Audio Uploads & Save to Database
-// Note: We added the 'async' keyword to the function so we can use 'await' inside!
+// POST ROUTE: Handle Audio Uploads & Perform AI Transcription!
 app.post('/api/upload', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded. Please select an audio file.' });
     }
 
-    // A placeholder transcription text for Day 3. 
-    // On Day 4, we will send this file to Deepgram to get the REAL text!
-    const placeholderText = "This is a placeholder transcript for Day 3! Audio received and stored successfully.";
+    console.log(`🎙️ Audio received! Starting transcription for: ${req.file.originalname}`);
 
-    // Save the file metadata & transcript to our MongoDB Database!
+    // 3. CREATE FILE STREAM
+    // Read the physical file we just saved in our 'uploads' folder as a stream
+    const audioStream = fs.createReadStream(req.file.path);
+
+    // 4. SEND TO DEEPGRAM AI
+    const response = await deepgram.listen.v1.media.transcribeFile(
+      audioStream,
+      {
+        model: 'nova-2',     // Nova-2 is Deepgram's fastest, most accurate model!
+        smart_format: true,  // Automatically adds punctuation, capitalizes, formats numbers
+        language: 'en-US'    // Transcribe in English
+      }
+    );
+
+    // 5. EXTRACT THE AI TEXT
+    // Navigate Deepgram's standard JSON response structure to grab the text
+const transcriptText = response.results.channels[0].alternatives[0].transcript || "No speech detected.";
+    console.log(`✨ AI Transcription completed! Result: "${transcriptText}"`);
+
+    // 6. SAVE TRANSCRIBED METADATA TO DATABASE
     const newRecord = await Transcription.create({
       filename: req.file.filename,
       originalName: req.file.originalname,
       size: req.file.size,
-      transcriptionText: placeholderText
+      transcriptionText: transcriptText // The actual AI transcription!
     });
 
-    // Return the saved database document back to the client!
+    // Return the completed record to the client
     res.status(200).json({
-      message: 'Audio file uploaded and saved to database successfully!',
+      message: 'Audio file transcribed and saved successfully!',
       transcription: newRecord
     });
+
   } catch (error) {
+    console.error('❌ Transcription error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
