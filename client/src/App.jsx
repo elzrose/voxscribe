@@ -1,32 +1,172 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 function App() {
-  return (
-    <div className="min-h-screen bg-[#090D16] text-white flex flex-col items-center justify-center p-6 selection:bg-indigo-500/30">
-      <div className="text-center space-y-6 max-w-lg">
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  
+  // 1. Create a state variable to hold the transcribed text
+  // We initialize it with a cool mock transcript so we can see the Day 5 design!
+  const [transcription, setTranscription] = useState(
+    "Nothing ever changes. Nothing ever changes. Nothing ever changes. Nothing ever changes. Nothing ever changes."
+  );
 
-        <div className="inline-flex items-center justify-center p-4 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 rounded-full shadow-lg shadow-indigo-500/10 animate-pulse">
-          <svg className="w-12 h-12 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
-          </svg>
-        </div>
+  // FILE UPLOAD HANDLER
+  const handlefile = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+    e.target.value = ""; // Reset value so same file can be selected again
+  };
 
-        <h1 className="text-5xl font-black tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-500 bg-clip-text text-transparent">
-          VoxScribe
-        </h1>
+  // START VOICE RECORDING
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      let chunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        const file = new File([audioBlob], 'live-recording.webm', { type: 'audio/webm' });
+        setSelectedFile(file);
         
-        <p className="text-gray-400 text-lg">
-          Your client app is running with <span className="text-indigo-400 font-semibold">Tailwind CSS v4</span>!
-        </p>
+        stream.getTracks().forEach(track => track.stop());
+      };
 
-        <div className="pt-4">
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-            Day 1 Tasks Completed
-          </span>
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Microphone access error:", err);
+      alert("Microphone permission is required to record audio!");
+    }
+  };
+
+  // STOP VOICE RECORDING
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  return (
+    <>
+      {/* MAIN BACKGROUND */}
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
+        
+        {/* THE CARD */}
+        <div className="w-full max-w-xl bg-[#FACC15] border-4 border-black rounded-3xl p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center space-y-8 text-center">
+          
+          {/* Header Text */}
+          <div className="space-y-2">
+            <h1 className="text-5xl font-black text-black tracking-tighter uppercase">
+              voxscribe
+            </h1>
+            <p className="text-black font-semibold text-sm opacity-80">
+              AI speech-to-text transcription engine
+            </p>
+          </div>
+
+          {/* BUTTON CONTAINER */}
+          <div className="w-full space-y-4">
+            
+            {/* UPLOAD FILE BUTTON (Solid Black) */}
+            <div className="w-full">
+              <label 
+                htmlFor="audio-input" 
+                className="cursor-pointer w-full inline-flex items-center justify-center gap-2 px-8 py-4 font-black text-sm uppercase tracking-wide rounded-xl bg-black text-white hover:bg-neutral-800 transition-all border-2 border-black transform active:translate-x-0.5 active:translate-y-0.5"
+              >
+                upload file
+              </label>
+              <input 
+                id="audio-input"
+                type="file" 
+                accept=".mp3,.wav,.m4a,audio/*"
+                className="hidden" 
+                onChange={handlefile}
+              />
+            </div>
+
+            {/* RECORD AUDIO BUTTON (Toggles between Record and Stop) */}
+            <div className="w-full">
+              {isRecording ? (
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  className="cursor-pointer w-full inline-flex items-center justify-center gap-2 px-8 py-4 font-black text-sm uppercase tracking-wide rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all border-2 border-black transform active:translate-x-0.5 active:translate-y-0.5 animate-pulse"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-white mr-1"></span>
+                  stop recording
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  className="cursor-pointer w-full inline-flex items-center justify-center gap-2 px-8 py-4 font-black text-sm uppercase tracking-wide rounded-xl bg-black text-white hover:bg-neutral-800 transition-all border-2 border-black transform active:translate-x-0.5 active:translate-y-0.5"
+                >
+                  record live audio
+                </button>
+              )}
+            </div>
+
+            {/* CLEAR FILE BUTTON (Solid Black) */}
+            <div className="w-full">
+              <button 
+                type="button" 
+                onClick={() => setSelectedFile(null)}
+                className="cursor-pointer w-full inline-flex items-center justify-center gap-2 px-8 py-4 font-black text-sm uppercase tracking-wide rounded-xl bg-black text-white hover:bg-neutral-800 transition-all border-2 border-black transform active:translate-x-0.5 active:translate-y-0.5"
+              >
+                clear file
+              </button>
+            </div>
+
+          </div>
+
+          {/* SELECTED FILE DISPLAY */}
+          {selectedFile && (
+            <div className="w-full p-4 border-3 border-black rounded-xl bg-white text-black font-bold flex items-center justify-center gap-3">
+              <svg className="w-5 h-5 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2Zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2ZM9 10l12-3" />
+              </svg>
+              <span className="truncate text-sm">
+                {selectedFile.name}
+              </span>
+            </div>
+          )}
+
+          {/* 6. TRANSCRIPTION DISPLAY SECTION: 
+              Stark white container, thick black borders, 3D shadow offset */}
+          {transcription && (
+            <div className="w-full p-6 border-3 border-black rounded-2xl bg-white text-black text-left space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              {/* Box Title */}
+              <div className="flex items-center gap-2 border-b-2 border-black pb-2">
+                <svg className="w-5 h-5 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
+                </svg>
+                <span className="text-xs font-black uppercase tracking-wider text-neutral-500">
+                  AI transcription result
+                </span>
+              </div>
+              
+              {/* Transcribed Text */}
+              <p className="text-sm font-semibold leading-relaxed text-black italic">
+                "{transcription}"
+              </p>
+            </div>
+          )}
+
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
