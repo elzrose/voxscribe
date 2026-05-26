@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
+import axios from 'axios'
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
-  
-  // 1. Create a state variable to hold the transcribed text
-  // We initialize it with a cool mock transcript so we can see the Day 5 design!
-  const [transcription, setTranscription] = useState(
-    "Nothing ever changes. Nothing ever changes. Nothing ever changes. Nothing ever changes. Nothing ever changes."
-  );
-
+  const [loading, setLoading]=useState(false);
+  const [error, setError]=useState(null);
+  const [transcription, setTranscription] = useState("");
   // FILE UPLOAD HANDLER
   const handlefile = (e) => {
     const file = e.target.files[0];
@@ -57,8 +54,34 @@ function App() {
       setIsRecording(false);
     }
   };
-
-  return (
+  const handleTranscribe = async ()=>
+  {
+    if(!selectedFile)return 
+    setLoading(true);
+    setError(null);
+    setTranscription("");
+    try{
+      const formData = new FormData();
+      formData.append('audio',selectedFile)
+      const response = await axios.post('http://localhost:5000/api/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  setTranscription(response.data.transcription.transcriptionText);
+    }
+    catch(err){
+      console.log("cant connect to api", err);
+      setError(
+      err.response?.data?.error || 
+      "Failed to connect to backend. Make sure your server is running on port 5000!"
+    );
+    }
+    finally{
+      setLoading(false);
+    }
+  };
+    return (
     <>
       {/* MAIN BACKGROUND */}
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
@@ -130,7 +153,41 @@ function App() {
             </div>
 
           </div>
+{selectedFile && !loading && (
+  <div className="w-full">
+    <button 
+      type="button" 
+      onClick={handleTranscribe}
+      className="cursor-pointer w-full inline-flex items-center justify-center gap-2 px-8 py-4 font-black text-sm uppercase tracking-wide rounded-xl bg-black text-white hover:bg-neutral-800 transition-all border-2 border-black transform active:translate-x-0.5 active:translate-y-0.5"
+    >
+     transcribe audio
+    </button>
+  </div>
+)}
+{/* 6. ERROR CONTAINER */}
+{error && (
+  <div className="w-full p-4 border-3 border-black rounded-xl bg-red-500 text-white font-bold text-sm text-left shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+    ⚠️ {error}
+  </div>
+)}
 
+{/* 7. LOADING BOX (Pulsing Animation) */}
+{loading && (
+  <div className="w-full p-6 border-3 border-black rounded-2xl bg-white text-black text-left space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+    <div className="flex items-center gap-2 border-b-2 border-black pb-2">
+      {/* Spinning refresh wheel */}
+      <svg className="w-5 h-5 text-black shrink-0 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+      </svg>
+      <span className="text-xs font-black uppercase tracking-wider text-neutral-500">
+        AI transcribing...
+      </span>
+    </div>
+    <p className="text-sm font-semibold text-black italic">
+      "Deepgram AI is listening and transcribing your voice. Please wait..."
+    </p>
+  </div>
+)}
           {/* SELECTED FILE DISPLAY */}
           {selectedFile && (
             <div className="w-full p-4 border-3 border-black rounded-xl bg-white text-black font-bold flex items-center justify-center gap-3">
@@ -143,26 +200,23 @@ function App() {
             </div>
           )}
 
-          {/* 6. TRANSCRIPTION DISPLAY SECTION: 
-              Stark white container, thick black borders, 3D shadow offset */}
-          {transcription && (
-            <div className="w-full p-6 border-3 border-black rounded-2xl bg-white text-black text-left space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              {/* Box Title */}
-              <div className="flex items-center gap-2 border-b-2 border-black pb-2">
-                <svg className="w-5 h-5 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
-                </svg>
-                <span className="text-xs font-black uppercase tracking-wider text-neutral-500">
-                  AI transcription result
-                </span>
-              </div>
-              
-              {/* Transcribed Text */}
-              <p className="text-sm font-semibold leading-relaxed text-black italic">
-                "{transcription}"
-              </p>
-            </div>
-          )}
+         {/* 8. AI TRANSCRIPTION CARD */}
+{transcription && (
+  <div className="w-full p-6 border-3 border-black rounded-2xl bg-white text-black text-left space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+    <div className="flex items-center gap-2 border-b-2 border-black pb-2">
+      {/* Speech bubble icon */}
+      <svg className="w-5 h-5 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
+      </svg>
+      <span className="text-xs font-black uppercase tracking-wider text-neutral-500">
+        AI transcription result
+      </span>
+    </div>
+    <p className="text-sm font-semibold leading-relaxed text-black italic">
+      "{transcription}"
+    </p>
+  </div>
+)}
 
         </div>
       </div>

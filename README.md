@@ -29,7 +29,13 @@ Extracted the real voice-to-text transcription and saved it directly in MongoDB.
 # Day 5
 
 Created a React Ul with:
- A file upload button.
- A record audio button using MediaRecorder.
- A section to display transcriptions.
+A file upload button.
+A record audio button using MediaRecorder.
+A section to display transcriptions.
 Used Tailwind CSS for styling.
+
+# Day 6
+
+Used Axios or Fetch API to send audio files from React to Express.
+Showed loading states while the transcription is being generated.
+Displayed the transcription result on the frontend.
