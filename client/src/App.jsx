@@ -24,10 +24,30 @@ function App() {
     fetchHistory();
   }, []);
 
-  // FILE UPLOAD HANDLER
+  // FILE UPLOAD & VALIDATION HANDLER
   const handlefile = (e) => {
     const file = e.target.files[0];
     if (file) {
+      const allowedExtensions = ['mp3', 'wav', 'm4a', 'webm'];
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      
+      // Guard Rule 1: Extension Checker
+      if (!allowedExtensions.includes(fileExtension)) {
+        setError("Invalid file type! Only MP3, WAV, M4A, and WEBM audio files are allowed.");
+        setSelectedFile(null);
+        e.target.value = "";
+        return;
+      }
+      
+      // Guard Rule 2: Max Size Checker (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        setError("File is too large! Maximum allowed limit is 10MB.");
+        setSelectedFile(null);
+        e.target.value = "";
+        return;
+      }
+
+      // If all guards pass, select the file cleanly!
       setSelectedFile(file);
       setError(null);
       setTranscription("");
@@ -97,16 +117,17 @@ function App() {
 
       setTranscription(response.data.transcription.transcriptionText);
       fetchHistory(); // Refresh the grid list!
-    } catch (err) {
+    }     catch (err) {
       console.error("API Error:", err);
+      // Grab server error JSON message, fallback to connection/offline warning
       setError(
         err.response?.data?.error || 
         "Failed to connect to backend. Make sure your server is running on port 5000!"
       );
     } finally {
-      setLoading(false);
+      setLoading(false); // ALWAYS turn off loading spinner in the end!
     }
-  };
+  }
 
    return (
     <>

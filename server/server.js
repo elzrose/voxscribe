@@ -127,7 +127,23 @@ const transcriptText = response.results.channels[0].alternatives[0].transcript |
     res.status(500).json({ error: error.message });
   }
 });
-
+app.use((err, req, res, next) => {
+  console.error('🚨 Global Error Handler Caught:', err.message);
+  // Catch Multer-specific limits (like oversized files)
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File is too large! Maximum limit is 10MB.' });
+    }
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  } 
+  
+  // Catch custom format errors from fileFilter
+  if (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  
+  next();
+});
 // START SERVER
 app.listen(PORT, () => {
   console.log(`🚀 Server is listening on http://localhost:${PORT}`);

@@ -49,3 +49,8 @@ Fetched previous transcriptions from the database and display them on the fronte
 
 Improved Ul with better typography, button designs, and animations.
 Displayed history of transcriptions in a card format.
+
+# Day 9
+
+Handled errors such as invalid file types and API failures.
+Showed proper error messages.
