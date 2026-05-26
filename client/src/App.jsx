@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect} from 'react';
 import axios from 'axios'
 
 function App() {
@@ -8,6 +8,19 @@ function App() {
   const [loading, setLoading]=useState(false);
   const [error, setError]=useState(null);
   const [transcription, setTranscription] = useState("");
+  const [history,setHistory]=useState([]);
+  const fetchHistory= async()=>{
+ try{
+  const response=await axios.get('http://localhost:5000/api/transcriptions');
+  setHistory(response.data);
+ }
+ catch(err){
+  console.log("error occured", err);
+ }
+  }
+ useEffect(() => {
+  fetchHistory();
+}, []);
   // FILE UPLOAD HANDLER
   const handlefile = (e) => {
     const file = e.target.files[0];
@@ -69,6 +82,7 @@ function App() {
       }
     });
   setTranscription(response.data.transcription.transcriptionText);
+  fetchHistory();
     }
     catch(err){
       console.log("cant connect to api", err);
@@ -217,6 +231,38 @@ function App() {
     </p>
   </div>
 )}
+          {/* 9. TRANSCRIPTION HISTORY CARDS SECTION */}
+          {history.length > 0 && (
+            <div className="w-full text-left space-y-4 pt-8 border-t-2 border-black">
+              <h2 className="text-xl font-black text-black uppercase tracking-tight">
+                transcripts history ({history.length})
+              </h2>
+              
+              {/* Loop through the history array using .map() */}
+              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                {history.map((item) => (
+                  <div 
+                    key={item._id} // Mongoose's unique ID serves as our React key!
+                    className="p-4 border-2 border-black rounded-xl bg-white text-black text-xs font-semibold leading-relaxed shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    {/* Header: Original File Name and formatted Date */}
+                    <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
+                      <span className="font-bold truncate max-w-[220px]">
+                        📁 {item.originalName}
+                      </span>
+                      <span className="text-[10px] text-gray-500">
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {/* Transcribed text */}
+                    <p className="italic text-neutral-800 font-semibold">
+                      "{item.transcriptionText}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

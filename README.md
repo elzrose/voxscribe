@@ -39,3 +39,8 @@ Used Tailwind CSS for styling.
 Used Axios or Fetch API to send audio files from React to Express.
 Showed loading states while the transcription is being generated.
 Displayed the transcription result on the frontend.
+
+# Day 7
+
+Modified backend to save transcriptions in Supabase/MongoDB.
+Fetched previous transcriptions from the database and display them on the frontend.
