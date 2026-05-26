@@ -1,1 +1,28 @@
 @import "tailwindcss";
+@layer base {
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
+@keyframes oscillate-up {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+@keyframes oscillate-down {
+  0%, 100% {
+    transform: translateY(-20px);
+  }
+  50% {
+    transform: translateY(0);
+  }
+}
+.animate-oscillate-up {
+  animation: oscillate-up 5s ease-in-out infinite;
+}
+.animate-oscillate-down {
+  animation: oscillate-down 5s ease-in-out infinite;
+}

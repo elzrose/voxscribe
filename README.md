@@ -44,3 +44,8 @@ Displayed the transcription result on the frontend.
 
 Modified backend to save transcriptions in Supabase/MongoDB.
 Fetched previous transcriptions from the database and display them on the frontend.
+
+# Day 8
+
+Improved Ul with better typography, button designs, and animations.
+Displayed history of transcriptions in a card format.
