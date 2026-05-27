@@ -191,7 +191,7 @@ wss.on('connection', async (ws) => {
   let deepgramLive = null;
 
   try {
-    // 1. AWAIT the connection creation (V5 SDK returns an async Promise!)
+    // 1. Create the connection object (V5 SDK returns a Socket in closed state by default)
     deepgramLive = await deepgram.listen.v1.createConnection({
       model: 'nova-2',
       smart_format: true,
@@ -199,7 +199,7 @@ wss.on('connection', async (ws) => {
       interim_results: true // Enable real-time interim guessing!
     });
 
-    // 2. Hook up Deepgram Live Connection Listeners (v5 Lowercase Keys)
+    // 2. Hook up Deepgram Live Connection Listeners BEFORE connecting
     deepgramLive.on('open', () => {
       console.log('✨ Connected to Deepgram Live Streaming API!');
     });
@@ -228,6 +228,12 @@ wss.on('connection', async (ws) => {
     deepgramLive.on('error', (err) => {
       console.error('🚨 Deepgram Live Error:', err.message);
     });
+
+    // 3. ACTUALLY initiate the WebSocket connection to Deepgram!
+    deepgramLive.connect();
+
+    // 4. Wait until the Deepgram connection is fully open before we proceed
+    await deepgramLive.waitForOpen();
 
   } catch (error) {
     console.error('🚨 Failed to initialize Deepgram Live connection:', error.message);
