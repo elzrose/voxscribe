@@ -70,53 +70,72 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'VoxScribe Server is fully operational!' });
 });
 
-// GET ROUTE: Fetch Transcription History
+// ==========================================
+// 6. ROUTES & API ENDPOINTS
+// ==========================================
+
+// Health Check Endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'VoxScribe Server is fully operational!' });
+});
+
+// GET ROUTE: Fetch Transcription History (Restricted by User ID)
 app.get('/api/transcriptions', async (req, res) => {
   try {
-    const history = await Transcription.find().sort({ createdAt: -1 });
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required to fetch history.' });
+    }
+    
+    // Fetch only the records belonging to this specific user!
+    const history = await Transcription.find({ userId }).sort({ createdAt: -1 });
     res.status(200).json(history);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST ROUTE: Handle Audio Uploads & Perform AI Transcription!
+// POST ROUTE: Handle Audio Uploads, Perform STT & Link to Supabase Owner!
 app.post('/api/upload', upload.single('audio'), async (req, res) => {
   try {
+    // 1. Extract the secure Supabase owner stamp
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required to link transcriptions.' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded. Please select an audio file.' });
     }
 
-    console.log(`🎙️ Audio received! Starting transcription for: ${req.file.originalname}`);
+    console.log(`🎙️ Audio received from User ${userId}! Starting transcription for: ${req.file.originalname}`);
 
-    // 3. CREATE FILE STREAM
-    // Read the physical file we just saved in our 'uploads' folder as a stream
+    // 2. CREATE FILE STREAM
     const audioStream = fs.createReadStream(req.file.path);
 
-    // 4. SEND TO DEEPGRAM AI
+    // 3. SEND TO DEEPGRAM AI
     const response = await deepgram.listen.v1.media.transcribeFile(
       audioStream,
       {
-        model: 'nova-2',     // Nova-2 is Deepgram's fastest, most accurate model!
-        smart_format: true,  // Automatically adds punctuation, capitalizes, formats numbers
-        language: 'en-US'    // Transcribe in English
+        model: 'nova-2',     
+        smart_format: true,  
+        language: 'en-US'    
       }
     );
 
-    // 5. EXTRACT THE AI TEXT
-    // Navigate Deepgram's standard JSON response structure to grab the text
-const transcriptText = response.results.channels[0].alternatives[0].transcript || "No speech detected.";
+    // 4. EXTRACT THE AI TEXT
+    const transcriptText = response.results.channels[0].alternatives[0].transcript || "No speech detected.";
     console.log(`✨ AI Transcription completed! Result: "${transcriptText}"`);
 
-    // 6. SAVE TRANSCRIBED METADATA TO DATABASE
+    // 5. SAVE TRANSCRIBED METADATA TO DATABASE (Stamped with the owner's userId!)
     const newRecord = await Transcription.create({
+      userId: userId, // Securely lock to the owner!
       filename: req.file.filename,
       originalName: req.file.originalname,
       size: req.file.size,
-      transcriptionText: transcriptText // The actual AI transcription!
+      transcriptionText: transcriptText 
     });
 
-    // Return the completed record to the client
     res.status(200).json({
       message: 'Audio file transcribed and saved successfully!',
       transcription: newRecord
@@ -127,8 +146,13 @@ const transcriptText = response.results.channels[0].alternatives[0].transcript |
     res.status(500).json({ error: error.message });
   }
 });
+
+// ==========================================
+// 7. GLOBAL EXPRESS ERROR-HANDLING MIDDLEWARE
+// ==========================================
 app.use((err, req, res, next) => {
   console.error('🚨 Global Error Handler Caught:', err.message);
+
   // Catch Multer-specific limits (like oversized files)
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -144,7 +168,10 @@ app.use((err, req, res, next) => {
   
   next();
 });
-// START SERVER
+
+// ==========================================
+// 8. START SERVER
+// ==========================================
 app.listen(PORT, () => {
   console.log(`🚀 Server is listening on http://localhost:${PORT}`);
 });

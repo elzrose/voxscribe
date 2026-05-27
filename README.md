@@ -54,3 +54,8 @@ Displayed history of transcriptions in a card format.
 
 Handled errors such as invalid file types and API failures.
 Showed proper error messages.
+
+# Day 10
+
+Added user authentication with Supabase Auth.
+Allowed users to save and retrieve their transcriptions.
