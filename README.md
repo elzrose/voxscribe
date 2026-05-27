@@ -64,3 +64,8 @@ Allowed users to save and retrieve their transcriptions.
 
 Deployed Express.js backend on Render/Vercel.
 Ensured the database is accessible from the deployed backend.
+
+# Day 12
+
+Deployed React app on Vercel.
+Ensured frontend and backend work seamlessly together.
