@@ -206,7 +206,7 @@ function App() {
             {/* 👤 ACTIVE USER / LOG OUT NAV BAR */}
             <div className="w-full flex justify-between items-center bg-white border-3 border-black p-3 rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
               <span className="font-black text-xs text-black truncate max-w-[200px]">
-                👤 USER: {session.user.email}
+                👤 USER: {session?.user?.email}
               </span>
               <button
                 type="button"

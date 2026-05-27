@@ -65,10 +65,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // ROUTES
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'VoxScribe Server is fully operational!' });
-});
 
 // ==========================================
 // 6. ROUTES & API ENDPOINTS

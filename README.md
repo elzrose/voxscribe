@@ -69,3 +69,8 @@ Ensured the database is accessible from the deployed backend.
 
 Deployed React app on Vercel.
 Ensured frontend and backend work seamlessly together.
+
+# Day 13
+
+Tested the project for Ul bugs, API errors, and database issues.
+Fixed any remaining problems before final submission.
