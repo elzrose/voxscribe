@@ -3,6 +3,10 @@ import axios from 'axios';
 import { supabase } from './supabaseClient';
 import Auth from './Auth';
 
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:5000'
+  : 'https://voxscribe-9gh0.onrender.com';
+
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -19,7 +23,7 @@ function App() {
   const fetchHistory = async (userId) => {
     if (!userId) return;
     try {
-      const response = await axios.get(`http://localhost:5000/api/transcriptions?userId=${userId}`);
+      const response = await axios.get(`${API_BASE_URL}/api/transcriptions?userId=${userId}`);
       setHistory(response.data);
     } catch (err) {
       console.error("Failed to fetch history:", err);
@@ -132,7 +136,7 @@ function App() {
       formData.append('audio', selectedFile);
       formData.append('userId', session.user.id); // Send Supabase user stamp!
 
-      const response = await axios.post('http://localhost:5000/api/upload', formData, {
+     const response = await axios.post(`${API_BASE_URL}/api/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

@@ -59,3 +59,8 @@ Showed proper error messages.
 
 Added user authentication with Supabase Auth.
 Allowed users to save and retrieve their transcriptions.
+
+# Day 11
+
+Deployed Express.js backend on Render/Vercel.
+Ensured the database is accessible from the deployed backend.
