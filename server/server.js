@@ -94,8 +94,8 @@ app.get('/api/transcriptions', async (req, res) => {
 // POST ROUTE: Handle Audio Uploads, Perform STT & Link to Supabase Owner!
 app.post('/api/upload', upload.single('audio'), async (req, res) => {
   try {
-    // 1. Extract the secure Supabase owner stamp
-    const { userId } = req.body;
+    // 1. Extract the secure Supabase owner stamp and optional pre-transcribed text
+    const { userId, preTranscribedText } = req.body;
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required to link transcriptions.' });
     }
@@ -104,24 +104,32 @@ app.post('/api/upload', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded. Please select an audio file.' });
     }
 
-    console.log(`🎙️ Audio received from User ${userId}! Starting transcription for: ${req.file.originalname}`);
+    let transcriptText = "";
 
-    // 2. CREATE FILE STREAM
-    const audioStream = fs.createReadStream(req.file.path);
+    // If text was already transcribed live, skip Deepgram call to save credits and speed up archiving!
+    if (preTranscribedText) {
+      transcriptText = preTranscribedText;
+      console.log(`✨ Saving pre-transcribed live dictation text: "${transcriptText}"`);
+    } else {
+      console.log(`🎙️ Audio received from User ${userId}! Starting transcription for: ${req.file.originalname}`);
 
-    // 3. SEND TO DEEPGRAM AI
-    const response = await deepgram.listen.v1.media.transcribeFile(
-      audioStream,
-      {
-        model: 'nova-2',     
-        smart_format: true,  
-        language: 'en-US'    
-      }
-    );
+      // 2. CREATE FILE STREAM
+      const audioStream = fs.createReadStream(req.file.path);
 
-    // 4. EXTRACT THE AI TEXT
-    const transcriptText = response.results.channels[0].alternatives[0].transcript || "No speech detected.";
-    console.log(`✨ AI Transcription completed! Result: "${transcriptText}"`);
+      // 3. SEND TO DEEPGRAM AI
+      const response = await deepgram.listen.v1.media.transcribeFile(
+        audioStream,
+        {
+          model: 'nova-2',     
+          smart_format: true,  
+          language: 'en-US'    
+        }
+      );
+
+      // 4. EXTRACT THE AI TEXT
+      transcriptText = response.results.channels[0].alternatives[0].transcript || "No speech detected.";
+      console.log(`✨ AI Transcription completed! Result: "${transcriptText}"`);
+    }
 
     // 5. SAVE TRANSCRIBED METADATA TO DATABASE (Stamped with the owner's userId!)
     const newRecord = await Transcription.create({

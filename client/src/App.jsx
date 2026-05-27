@@ -20,6 +20,7 @@ function App() {
   const [copiedId, setCopiedId] = useState(null);
     const [interimTranscript, setInterimTranscript] = useState("");
   const socketRef = useRef(null);
+  const transcriptionRef = useRef("");
 
     // FETCH DATABASE HISTORY SPECIFIC TO LOGGED IN USER
   const fetchHistory = async (userId) => {
@@ -90,6 +91,7 @@ function App() {
       setTranscription("");
       setInterimTranscript("");
       setSelectedFile(null);
+      transcriptionRef.current = ""; // Reset live text accumulator
 
       // 1. Convert http URL to ws URL for WebSocket connection
       const wsUrl = API_BASE_URL.replace(/^http/, 'ws');
@@ -126,13 +128,36 @@ function App() {
           }
         };
 
-        recorder.onstop = () => {
-          // Accumulate all chunks as a file so saving to MongoDB stays fully operational!
-          const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-          const file = new File([audioBlob], 'live-recording.webm', { type: 'audio/webm' });
-          setSelectedFile(file);
-          
+        recorder.onstop = async () => {
+          // Clean up microphone tracks
           stream.getTracks().forEach(track => track.stop());
+
+          const currentText = transcriptionRef.current.trim();
+          if (currentText && session?.user) {
+            // Automatically save the real-time transcription to MongoDB in the background!
+            setLoading(true);
+            try {
+              const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+              const file = new File([audioBlob], 'live-recording.webm', { type: 'audio/webm' });
+
+              const formData = new FormData();
+              formData.append('audio', file);
+              formData.append('userId', session.user.id);
+              formData.append('preTranscribedText', currentText); // Send live text to avoid duplicate Deepgram charges!
+
+              await axios.post(`${API_BASE_URL}/api/upload`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+              });
+
+              // Instantly reload user's private history vault
+              fetchHistory(session.user.id);
+            } catch (err) {
+              console.error("Auto-save live transcription error:", err);
+              setError("Failed to auto-save transcription to your vault.");
+            } finally {
+              setLoading(false);
+            }
+          }
         };
 
         recorder.start(250); // Slice mic input and stream every 250ms!
@@ -145,7 +170,9 @@ function App() {
         const data = JSON.parse(event.data);
         if (data.isFinal) {
           // Lock in final sentences as solid black text
-          setTranscription(prev => (prev ? prev + " " : "") + data.transcript);
+          const nextText = (transcriptionRef.current ? transcriptionRef.current + " " : "") + data.transcript;
+          transcriptionRef.current = nextText;
+          setTranscription(nextText);
           setInterimTranscript(""); // Reset live interim guess
         } else {
           // Set live interim guess
