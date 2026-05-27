@@ -205,6 +205,9 @@ wss.on('connection', async (ws) => {
     });
 
     deepgramLive.on('message', (data) => {
+      // Log every message received from Deepgram to trace communication flow
+      console.log(`📥 Message from Deepgram: type = "${data.type}"`);
+
       // The V5 SDK automatically parses JSON payloads and triggers the 'message' event.
       // We filter for message type 'Results' to extract transcription text.
       if (data.type === 'Results') {
@@ -212,6 +215,7 @@ wss.on('connection', async (ws) => {
         const isFinal = data.is_final;
         
         if (transcriptText) {
+          console.log(`✨ Live Transcript Chunk: "${transcriptText}" (isFinal: ${isFinal})`);
           // Forward the live transcript text and finality stamp back to the client!
           ws.send(JSON.stringify({
             transcript: transcriptText,
