@@ -21,6 +21,8 @@ function App() {
     const [interimTranscript, setInterimTranscript] = useState("");
   const [wsStatus, setWsStatus] = useState("Disconnected");
   const [micStatus, setMicStatus] = useState("Idle");
+  const [packetsSent, setPacketsSent] = useState(0);
+  const [messagesReceived, setMessagesReceived] = useState(0);
   const socketRef = useRef(null);
   const transcriptionRef = useRef("");
 
@@ -97,6 +99,8 @@ function App() {
       
       setWsStatus("Connecting...");
       setMicStatus("Idle");
+      setPacketsSent(0);
+      setMessagesReceived(0);
 
       // 1. Convert http URL to ws URL for WebSocket connection
       const wsUrl = API_BASE_URL.replace(/^http/, 'ws');
@@ -133,6 +137,7 @@ function App() {
               // Send binary raw audio chunk instantly over WebSocket!
               if (socket.readyState === WebSocket.OPEN) {
                 socket.send(e.data);
+                setPacketsSent(prev => prev + 1);
               }
             }
           };
@@ -187,6 +192,7 @@ function App() {
 
       // 4. Listen for real-time transcripts from the server!
       socket.onmessage = (event) => {
+        setMessagesReceived(prev => prev + 1);
         const data = JSON.parse(event.data);
         if (data.isFinal) {
           // Lock in final sentences as solid black text
@@ -413,15 +419,23 @@ function App() {
 
             {/* RECORDING / CONNECTION STATUS BANNER */}
             {(isRecording || wsStatus === "Connecting..." || wsStatus === "Error") && (
-              <div className="w-full p-3 border-3 border-black rounded-xl bg-white text-black font-black text-xs flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-2.5 h-2.5 rounded-full ${wsStatus === "Connected" ? "bg-green-500 animate-pulse" : wsStatus === "Connecting..." ? "bg-yellow-500 animate-bounce" : "bg-red-500"}`}></span>
-                  <span>SERVER: {wsStatus.toUpperCase()}</span>
+              <div className="w-full p-4 border-3 border-black rounded-xl bg-white text-black font-black text-xs flex flex-col gap-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2.5 h-2.5 rounded-full ${wsStatus === "Connected" ? "bg-green-500 animate-pulse" : wsStatus === "Connecting..." ? "bg-yellow-500 animate-bounce" : "bg-red-500"}`}></span>
+                    <span>SERVER: {wsStatus.toUpperCase()}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 border-l-2 border-black pl-3">
+                    <span className={`w-2.5 h-2.5 rounded-full ${micStatus.includes("Recording") ? "bg-red-500 animate-pulse" : "bg-neutral-400"}`}></span>
+                    <span>MIC: {micStatus.toUpperCase()}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 border-l-2 border-black pl-3">
-                  <span className={`w-2.5 h-2.5 rounded-full ${micStatus.includes("Recording") ? "bg-red-500 animate-pulse" : "bg-neutral-400"}`}></span>
-                  <span>MIC: {micStatus.toUpperCase()}</span>
-                </div>
+                {wsStatus === "Connected" && (
+                  <div className="w-full pt-2 border-t border-black flex justify-between items-center text-[10px] text-neutral-600 font-black tracking-wider">
+                    <span>📤 Sent Chunks: {packetsSent}</span>
+                    <span>📥 Received Text: {messagesReceived}</span>
+                  </div>
+                )}
               </div>
             )}
 
