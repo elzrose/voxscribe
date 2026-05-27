@@ -104,8 +104,16 @@ function App() {
         // 2. Request Microphone Access
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // 3. Configure MediaRecorder with small 250ms timeslices
-        const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        // 3. Configure MediaRecorder with robust browser MIME-type fallback
+        let recorderOptions = {};
+        if (typeof MediaRecorder.isTypeSupported === 'function') {
+          if (MediaRecorder.isTypeSupported('audio/webm')) {
+            recorderOptions = { mimeType: 'audio/webm' };
+          } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            recorderOptions = { mimeType: 'audio/mp4' };
+          }
+        }
+        const recorder = new MediaRecorder(stream, recorderOptions);
         let chunks = [];
 
         recorder.ondataavailable = (e) => {
