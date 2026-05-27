@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , useRef } from 'react';
 import axios from 'axios';
 import { supabase } from './supabaseClient';
 import Auth from './Auth';
@@ -18,6 +18,8 @@ function App() {
   const [session, setSession] = useState(null);
     const [flippedCardId, setFlippedCardId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+    const [interimTranscript, setInterimTranscript] = useState("");
+  const socketRef = useRef(null);
 
     // FETCH DATABASE HISTORY SPECIFIC TO LOGGED IN USER
   const fetchHistory = async (userId) => {
@@ -81,45 +83,93 @@ function App() {
     e.target.value = "";
   };
 
-  // START VOICE RECORDING
+   // START REAL-TIME STREAMING VOICE RECORDING
   const startRecording = async () => {
     try {
       setError(null);
       setTranscription("");
+      setInterimTranscript("");
       setSelectedFile(null);
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      let chunks = [];
+      // 1. Convert http URL to ws URL for WebSocket connection
+      const wsUrl = API_BASE_URL.replace(/^http/, 'ws');
+      console.log(`🔌 Connecting to Live WebSocket: ${wsUrl}`);
+      
+      const socket = new WebSocket(wsUrl);
+      socketRef.current = socket;
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
+      socket.onopen = async () => {
+        console.log("🔌 Connected to Live WebSocket server!");
+        
+        // 2. Request Microphone Access
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // 3. Configure MediaRecorder with small 250ms timeslices
+        const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        let chunks = [];
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunks.push(e.data);
+            // Send binary raw audio chunk instantly over WebSocket!
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(e.data);
+            }
+          }
+        };
+
+        recorder.onstop = () => {
+          // Accumulate all chunks as a file so saving to MongoDB stays fully operational!
+          const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+          const file = new File([audioBlob], 'live-recording.webm', { type: 'audio/webm' });
+          setSelectedFile(file);
+          
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        recorder.start(250); // Slice mic input and stream every 250ms!
+        setMediaRecorder(recorder);
+        setIsRecording(true);
+      };
+
+      // 4. Listen for real-time transcripts from the server!
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.isFinal) {
+          // Lock in final sentences as solid black text
+          setTranscription(prev => (prev ? prev + " " : "") + data.transcript);
+          setInterimTranscript(""); // Reset live interim guess
+        } else {
+          // Set live interim guess
+          setInterimTranscript(data.transcript);
         }
       };
 
-      recorder.onstop = () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-        const file = new File([audioBlob], 'live-recording.webm', { type: 'audio/webm' });
-        setSelectedFile(file);
-        
-        stream.getTracks().forEach(track => track.stop());
+      socket.onclose = () => {
+        console.log("❌ Live WebSocket connection closed.");
       };
 
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsRecording(true);
+      socket.onerror = (err) => {
+        console.error("🚨 Live WebSocket Error:", err);
+        setError("Real-time connection error. Make sure your server is online!");
+      };
+
     } catch (err) {
       console.error("Microphone access error:", err);
       setError("Microphone permission is required to record audio!");
     }
   };
 
-  // STOP VOICE RECORDING
+  // STOP VOICE RECORDING & STREAM
   const stopRecording = () => {
     if (mediaRecorder && isRecording) {
       mediaRecorder.stop();
       setIsRecording(false);
+    }
+    // Close the WebSocket connection cleanly
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
     }
   };
 
@@ -349,9 +399,9 @@ function App() {
                     AI transcription result
                   </span>
                 </div>
-                <p className="text-sm font-semibold leading-relaxed text-black italic">
-                  "{transcription}"
-                </p>
+                              <p className="text-sm font-semibold leading-relaxed text-black italic">
+                "{transcription} {interimTranscript && <span className="text-neutral-500 animate-pulse">{interimTranscript}</span>}"
+              </p>
               </div>
             )}
 

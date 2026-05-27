@@ -168,6 +168,78 @@ app.use((err, req, res, next) => {
 // ==========================================
 // 8. START SERVER
 // ==========================================
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server is listening on http://localhost:${PORT}`);
+});
+
+// ==========================================
+// 9. WEB SOCKET SERVER FOR LIVE STREAMING
+// ==========================================
+const { WebSocketServer } = require('ws');
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws) => {
+  console.log('🔌 Client connected to Live WebSocket proxy!');
+  let deepgramLive = null;
+
+  try {
+    // Initialize Deepgram Live Connection
+    deepgramLive = deepgram.listen.live.createConnection({
+      model: 'nova-2',
+      smart_format: true,
+      language: 'en-US',
+      interim_results: true // Enable real-time interim guessing!
+    });
+
+    // 1. Hook up Deepgram Live Connection Listeners
+    deepgramLive.on('open', () => {
+      console.log('✨ Connected to Deepgram Live Streaming API!');
+    });
+
+    deepgramLive.on('transcript', (data) => {
+      const transcriptText = data.channel.alternatives[0].transcript;
+      const isFinal = data.is_final;
+      
+      if (transcriptText) {
+        // Forward the live transcript text and finality stamp back to the client!
+        ws.send(JSON.stringify({
+          transcript: transcriptText,
+          isFinal: isFinal
+        }));
+      }
+    });
+
+    deepgramLive.on('close', () => {
+      console.log('❌ Deepgram Live connection closed.');
+    });
+
+    deepgramLive.on('error', (err) => {
+      console.error('🚨 Deepgram Live Error:', err.message);
+    });
+
+  } catch (error) {
+    console.error('🚨 Failed to initialize Deepgram Live connection:', error.message);
+    ws.close();
+    return;
+  }
+
+  // 2. Receive binary audio data from React and pipe it to Deepgram
+  ws.on('message', (message) => {
+    if (deepgramLive && deepgramLive.getReadyState() === 1) {
+      deepgramLive.send(message);
+    }
+  });
+
+  // 3. Close connections cleanly when the client disconnects
+  ws.on('close', () => {
+    console.log('🔌 Client disconnected from Live WebSocket proxy.');
+    if (deepgramLive) {
+      deepgramLive.finish(); // Finalize stream gracefully
+      deepgramLive = null;
+    }
+  });
+
+  ws.on('error', (err) => {
+    console.error('🚨 Client WebSocket Proxy Error:', err.message);
+  });
 });
