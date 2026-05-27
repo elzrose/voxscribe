@@ -225,8 +225,8 @@ wss.on('connection', async (ws) => {
       }
     });
 
-    deepgramLive.on('close', () => {
-      console.log('❌ Deepgram Live connection closed.');
+    deepgramLive.on('close', (event) => {
+      console.log(`❌ Deepgram Live connection closed. Code: ${event?.code || 'N/A'}, Reason: ${event?.reason || 'N/A'}`);
     });
 
     deepgramLive.on('error', (err) => {
