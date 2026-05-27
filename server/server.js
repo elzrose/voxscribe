@@ -178,34 +178,38 @@ const server = app.listen(PORT, () => {
 const { WebSocketServer } = require('ws');
 const wss = new WebSocketServer({ server });
 
-wss.on('connection', (ws) => {
+wss.on('connection', async (ws) => {
   console.log('🔌 Client connected to Live WebSocket proxy!');
   let deepgramLive = null;
 
   try {
-    // Initialize Deepgram Live Connection
-    deepgramLive = deepgram.listen.live.createConnection({
+    // 1. AWAIT the connection creation (V5 SDK returns an async Promise!)
+    deepgramLive = await deepgram.listen.v1.createConnection({
       model: 'nova-2',
       smart_format: true,
       language: 'en-US',
       interim_results: true // Enable real-time interim guessing!
     });
 
-    // 1. Hook up Deepgram Live Connection Listeners
+    // 2. Hook up Deepgram Live Connection Listeners (v5 Lowercase Keys)
     deepgramLive.on('open', () => {
       console.log('✨ Connected to Deepgram Live Streaming API!');
     });
 
-    deepgramLive.on('transcript', (data) => {
-      const transcriptText = data.channel.alternatives[0].transcript;
-      const isFinal = data.is_final;
-      
-      if (transcriptText) {
-        // Forward the live transcript text and finality stamp back to the client!
-        ws.send(JSON.stringify({
-          transcript: transcriptText,
-          isFinal: isFinal
-        }));
+    deepgramLive.on('message', (data) => {
+      // The V5 SDK automatically parses JSON payloads and triggers the 'message' event.
+      // We filter for message type 'Results' to extract transcription text.
+      if (data.type === 'Results') {
+        const transcriptText = data.channel.alternatives[0].transcript;
+        const isFinal = data.is_final;
+        
+        if (transcriptText) {
+          // Forward the live transcript text and finality stamp back to the client!
+          ws.send(JSON.stringify({
+            transcript: transcriptText,
+            isFinal: isFinal
+          }));
+        }
       }
     });
 
@@ -223,18 +227,19 @@ wss.on('connection', (ws) => {
     return;
   }
 
-  // 2. Receive binary audio data from React and pipe it to Deepgram
+  // 3. Receive binary audio data from React and pipe it via sendMedia
   ws.on('message', (message) => {
-    if (deepgramLive && deepgramLive.getReadyState() === 1) {
-      deepgramLive.send(message);
+    // readyState === 1 means the WebSocket is fully OPEN
+    if (deepgramLive && deepgramLive.readyState === 1) {
+      deepgramLive.sendMedia(message); // V5 SDK uses sendMedia!
     }
   });
 
-  // 3. Close connections cleanly when the client disconnects
+  // 4. Close connections cleanly when the client disconnects
   ws.on('close', () => {
     console.log('🔌 Client disconnected from Live WebSocket proxy.');
     if (deepgramLive) {
-      deepgramLive.finish(); // Finalize stream gracefully
+      deepgramLive.close(); // V5 SDK uses close()!
       deepgramLive = null;
     }
   });

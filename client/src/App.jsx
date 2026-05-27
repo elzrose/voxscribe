@@ -389,7 +389,7 @@ function App() {
             )}
 
             {/* REAL AI TRANSCRIPTION DISPLAY */}
-            {transcription && (
+            {(transcription || interimTranscript) && (
               <div className="w-full p-6 border-3 border-black rounded-2xl bg-white text-black text-left space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <div className="flex items-center gap-2 border-b-2 border-black pb-2">
                   <svg className="w-5 h-5 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
