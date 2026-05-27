@@ -227,10 +227,16 @@ wss.on('connection', async (ws) => {
 
     deepgramLive.on('close', (event) => {
       console.log(`❌ Deepgram Live connection closed. Code: ${event?.code || 'N/A'}, Reason: ${event?.reason || 'N/A'}`);
+      if (ws.readyState === 1) {
+        ws.close(1011, 'Deepgram connection closed');
+      }
     });
 
     deepgramLive.on('error', (err) => {
       console.error('🚨 Deepgram Live Error:', err.message);
+      if (ws.readyState === 1) {
+        ws.close(1011, 'Deepgram error: ' + err.message);
+      }
     });
 
     // 3. ACTUALLY initiate the WebSocket connection to Deepgram!
@@ -238,6 +244,9 @@ wss.on('connection', async (ws) => {
 
     // 4. Wait until the Deepgram connection is fully open before we proceed
     await deepgramLive.waitForOpen();
+
+    // 5. Send a 'ready' signal to the client so it can start recording safely!
+    ws.send(JSON.stringify({ type: 'ready' }));
 
   } catch (error) {
     console.error('🚨 Failed to initialize Deepgram Live connection:', error.message);
@@ -247,6 +256,7 @@ wss.on('connection', async (ws) => {
 
   // 3. Receive binary audio data from React and pipe it via sendMedia
   ws.on('message', (message) => {
+    console.log(`📤 Received chunk from client: size = ${message.length} bytes, deepgramReadyState = ${deepgramLive ? deepgramLive.readyState : 'null'}`);
     // readyState === 1 means the WebSocket is fully OPEN
     if (deepgramLive && deepgramLive.readyState === 1) {
       deepgramLive.sendMedia(message); // V5 SDK uses sendMedia!

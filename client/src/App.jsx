@@ -109,100 +109,111 @@ function App() {
       const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
 
-      socket.onopen = async () => {
-        console.log("🔌 Connected to Live WebSocket server!");
-        setWsStatus("Connected");
-        setMicStatus("Requesting Microphone...");
-        
-        try {
-          // 2. Request Microphone Access
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          setMicStatus("Initializing Recorder...");
-          
-          // 3. Configure MediaRecorder with robust browser MIME-type fallback
-          let recorderOptions = {};
-          if (typeof MediaRecorder.isTypeSupported === 'function') {
-            if (MediaRecorder.isTypeSupported('audio/webm')) {
-              recorderOptions = { mimeType: 'audio/webm' };
-            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-              recorderOptions = { mimeType: 'audio/mp4' };
-            }
-          }
-          const recorder = new MediaRecorder(stream, recorderOptions);
-          let chunks = [];
-
-          recorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-              chunks.push(e.data);
-              // Send binary raw audio chunk instantly over WebSocket!
-              if (socket.readyState === WebSocket.OPEN) {
-                socket.send(e.data);
-                setPacketsSent(prev => prev + 1);
-              }
-            }
-          };
-
-          recorder.onstop = async () => {
-            // Clean up microphone tracks
-            stream.getTracks().forEach(track => track.stop());
-            setMicStatus("Saving...");
-
-            const currentText = transcriptionRef.current.trim();
-            if (currentText && session?.user) {
-              // Automatically save the real-time transcription to MongoDB in the background!
-              setLoading(true);
-              try {
-                const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-                const file = new File([audioBlob], 'live-recording.webm', { type: 'audio/webm' });
-
-                const formData = new FormData();
-                formData.append('audio', file);
-                formData.append('userId', session.user.id);
-                formData.append('preTranscribedText', currentText); // Send live text to avoid duplicate Deepgram charges!
-
-                await axios.post(`${API_BASE_URL}/api/upload`, formData, {
-                  headers: { 'Content-Type': 'multipart/form-data' }
-                });
-
-                // Instantly reload user's private history vault
-                fetchHistory(session.user.id);
-              } catch (err) {
-                console.error("Auto-save live transcription error:", err);
-                setError("Failed to auto-save transcription to your vault.");
-              } finally {
-                setLoading(false);
-                setMicStatus("Idle");
-              }
-            } else {
-              setMicStatus("Idle");
-            }
-          };
-
-          recorder.start(250); // Slice mic input and stream every 250ms!
-          setMediaRecorder(recorder);
-          setIsRecording(true);
-          setMicStatus("Recording...");
-        } catch (micErr) {
-          console.error("Microphone access error:", micErr);
-          setMicStatus("Denied");
-          setError("Microphone permission is required to record audio!");
-          socket.close();
-        }
+      socket.onopen = () => {
+        console.log("🔌 Connected to Live WebSocket server! Awaiting AI stream readiness...");
+        setWsStatus("Connecting to AI...");
       };
 
-      // 4. Listen for real-time transcripts from the server!
-      socket.onmessage = (event) => {
-        setMessagesReceived(prev => prev + 1);
+      // 4. Listen for messages from the server!
+      socket.onmessage = async (event) => {
         const data = JSON.parse(event.data);
-        if (data.isFinal) {
-          // Lock in final sentences as solid black text
-          const nextText = (transcriptionRef.current ? transcriptionRef.current + " " : "") + data.transcript;
-          transcriptionRef.current = nextText;
-          setTranscription(nextText);
-          setInterimTranscript(""); // Reset live interim guess
-        } else {
-          // Set live interim guess
-          setInterimTranscript(data.transcript);
+
+        // Handle Server Readiness Handshake
+        if (data.type === "ready") {
+          console.log("✨ Deepgram Live is fully ready! Initializing microphone...");
+          setWsStatus("Connected");
+          setMicStatus("Requesting Microphone...");
+          
+          try {
+            // 2. Request Microphone Access
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setMicStatus("Initializing Recorder...");
+            
+            // 3. Configure MediaRecorder with robust browser MIME-type fallback
+            let recorderOptions = {};
+            if (typeof MediaRecorder.isTypeSupported === 'function') {
+              if (MediaRecorder.isTypeSupported('audio/webm')) {
+                recorderOptions = { mimeType: 'audio/webm' };
+              } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                recorderOptions = { mimeType: 'audio/mp4' };
+              }
+            }
+            const recorder = new MediaRecorder(stream, recorderOptions);
+            let chunks = [];
+
+            recorder.ondataavailable = (e) => {
+              if (e.data.size > 0) {
+                chunks.push(e.data);
+                // Send binary raw audio chunk instantly over WebSocket!
+                if (socket.readyState === WebSocket.OPEN) {
+                  socket.send(e.data);
+                  setPacketsSent(prev => prev + 1);
+                }
+              }
+            };
+
+            recorder.onstop = async () => {
+              // Clean up microphone tracks
+              stream.getTracks().forEach(track => track.stop());
+              setMicStatus("Saving...");
+
+              const currentText = transcriptionRef.current.trim();
+              if (currentText && session?.user) {
+                // Automatically save the real-time transcription to MongoDB in the background!
+                setLoading(true);
+                try {
+                  const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+                  const file = new File([audioBlob], 'live-recording.webm', { type: 'audio/webm' });
+
+                  const formData = new FormData();
+                  formData.append('audio', file);
+                  formData.append('userId', session.user.id);
+                  formData.append('preTranscribedText', currentText); // Send live text to avoid duplicate Deepgram charges!
+
+                  await axios.post(`${API_BASE_URL}/api/upload`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                  });
+
+                  // Instantly reload user's private history vault
+                  fetchHistory(session.user.id);
+                } catch (err) {
+                  console.error("Auto-save live transcription error:", err);
+                  setError("Failed to auto-save transcription to your vault.");
+                } finally {
+                  setLoading(false);
+                  setMicStatus("Idle");
+                }
+              } else {
+                setMicStatus("Idle");
+              }
+            };
+
+            recorder.start(250); // Slice mic input and stream every 250ms!
+            setMediaRecorder(recorder);
+            setIsRecording(true);
+            setMicStatus("Recording...");
+          } catch (micErr) {
+            console.error("Microphone access error:", micErr);
+            setMicStatus("Denied");
+            setError("Microphone permission is required to record audio!");
+            socket.close();
+          }
+          return;
+        }
+
+        // Handle Real-Time Transcripts Payloads
+        if (data.transcript !== undefined) {
+          setMessagesReceived(prev => prev + 1);
+          if (data.isFinal) {
+            // Lock in final sentences as solid black text
+            const nextText = (transcriptionRef.current ? transcriptionRef.current + " " : "") + data.transcript;
+            transcriptionRef.current = nextText;
+            setTranscription(nextText);
+            setInterimTranscript(""); // Reset live interim guess
+          } else {
+            // Set live interim guess
+            setInterimTranscript(data.transcript);
+          }
         }
       };
 
