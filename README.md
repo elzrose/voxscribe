@@ -1,3 +1,47 @@
+# 🎙️ VoxScribe — Full-Stack AI Speech-to-Text Engine
+
+VoxScribe is a high-performance, responsive Speech-to-Text web application styled in a vibrant, high-contrast **Neo-brutalist design system** (yellow, black, and white) featuring an animated soundwave equalizer background.
+
+Users can upload audio files or capture live voice recordings directly from their browser microphone, transcribe them utilizing the lightning-fast Deepgram Nova-2 AI engine, and save transcripts securely in their private cloud-synchronized database vaults.
+
+## System Architecture
+
+VoxScribe follows a secure, scalable hybrid-cloud client-server architecture:
+
+     Frontend Layer
+    subgraph Frontend [Client: React + Vite + Tailwind CSS]
+        UI[Dashboard UI]
+        Rec[HTML5 MediaRecorder API]
+        Up[Audio File Uploader]
+        Auth[Supabase Auth Login/Signup]
+    end
+
+    %% Backend Layer
+    subgraph Backend [Server: Node.js + Express]
+        Router[Express API Router]
+        Mlt[Multer File Parser]
+        Err[Global Error Handler]
+    end
+
+    %% Database & External API Layer
+    subgraph Cloud [Cloud & AI Services]
+        DB[(MongoDB Atlas)]
+        STT_API[Deepgram Nova-2 STT]
+        Supa[(Supabase Auth Identity)]
+    end
+
+    %% Flow arrows
+    Auth -->|Authenticate User| Supa
+    UI -->|Record Voice| Rec
+    UI -->|Select Local File| Up
+    Rec -->|Send Audio Formdata + userId| Router
+    Up -->|Upload Audio Formdata + userId| Router
+    Router -->|Parse File Upload| Mlt
+    Router -->|Stream Audio Chunks| STT_API
+    STT_API -->|Return Punctuated Text JSON| Router
+    Router -->|Store Metadata linked to userId| DB
+    Router -->|Error Catching| Err
+
 # Day 1
 
 Explained MERN stack & Speech-to-Text APIs.
@@ -74,3 +118,8 @@ Ensured frontend and backend work seamlessly together.
 
 Tested the project for Ul bugs, API errors, and database issues.
 Fixed any remaining problems before final submission.
+
+# Day 14
+
+Wrote a README.md explaining the project setup, API usage, and deployment steps.
+Cleaned up unnecessary console logs and improve code structure.
