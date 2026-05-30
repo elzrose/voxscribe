@@ -51,6 +51,9 @@ function Auth({ onAuthSuccess }) {
       
       {/* Title */}
       <div className="space-y-1">
+        <div className="inline-block px-5 py-2.5 bg-black text-white text-lg font-black uppercase rounded-xl tracking-widest mb-3 shadow-[3px_3px_0px_0px_rgba(255,255,255,1)] border-3 border-black">
+          voxscribe
+        </div>
         <h1 className="text-4xl font-black text-black uppercase tracking-tight">
           {isSignUp ? "Create Account" : "Access Vault"}
         </h1>
